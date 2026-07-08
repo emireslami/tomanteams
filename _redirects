@@ -1,0 +1,3 @@
+/main /main/ 301
+/main/* /main/index.html 200
+/* /main/index.html 200
