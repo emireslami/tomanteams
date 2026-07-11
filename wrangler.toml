@@ -1,0 +1,1 @@
+name = "tomanteams"\nmain = "worker.js"\ncompatibility_date = "2026-07-11"\nworkers_dev = true\n
