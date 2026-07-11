@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Squads | Corporate Services</title>
+  <style>
+    :root{--ink:#172033;--muted:#647084;--line:#dce3ec;--page:#f5f7fa;--panel:#fff;--blue:#2f67d8;--teal:#18866f;--soft-blue:#eaf2ff;--soft-teal:#e8f7f3;--soft-amber:#fff4dd;--shadow:0 18px 44px rgba(28,43,68,.08);--radius:8px}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:linear-gradient(180deg,#fff 0%,var(--page) 42%),var(--page);line-height:1.45}.page{width:min(1180px,calc(100% - 40px));margin:0 auto;padding:34px 0 42px}header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:end;padding:8px 0 24px;border-bottom:1px solid var(--line)}h1{margin:0;font-size:clamp(32px,4vw,52px);line-height:1.04}.subtitle{max-width:760px;margin:12px 0 0;color:var(--muted);font-size:16px}.top-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}.nav-link{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:#34425a;font-size:13px;font-weight:800;text-decoration:none;white-space:nowrap}.nav-link.primary{border-color:#bfd0f7;background:var(--soft-blue);color:var(--blue)}
+    main{display:grid;gap:18px;margin-top:24px}.summary-grid{display:grid;grid-template-columns:1.2fr repeat(3,minmax(0,.9fr));gap:14px}.summary-card,.squad-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow)}.summary-card{min-height:118px;padding:18px}.summary-card h2,.summary-card h3,.squad-card h2{margin:0}.summary-card h2{font-size:19px}.summary-card h3{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.summary-card p{margin:8px 0 0;color:var(--muted);font-size:13px}.metric{margin-top:10px;color:var(--blue);font-size:30px;font-weight:900;line-height:1}
+    .squad-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.squad-card{display:grid;gap:16px;padding:18px;border-top:4px solid var(--blue)}.squad-card.core{border-top-color:var(--teal)}.squad-card.platform{border-top-color:#7a5af8}.squad-card.psp{border-top-color:#d97706}.squad-card.bank{border-top-color:var(--blue)}.squad-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.squad-title h2{font-size:22px;line-height:1.15}.tag{display:inline-flex;align-items:center;min-height:28px;padding:6px 9px;border-radius:999px;background:var(--soft-blue);color:var(--blue);font-size:12px;font-weight:850;white-space:nowrap}.section{display:grid;gap:9px}.label{color:var(--muted);font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.04em}.mission{margin:0;padding:12px;border:1px solid #e1e8f0;border-radius:var(--radius);background:#fbfcfe;color:#34425a;font-size:13px}.chip-list{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}.chip-list li{padding:7px 9px;border:1px solid #d8e2f8;border-radius:var(--radius);background:rgba(255,255,255,.86);color:#34425a;font-size:12px;font-weight:750}.product-list li{border-color:#cbe7df;background:#f3fbf8;color:#245f54}.member{position:relative;cursor:help}.member::after{content:attr(data-role);position:absolute;top:calc(100% + 8px);left:50%;z-index:20;max-width:260px;padding:7px 9px;border-radius:7px;background:#172033;color:#fff;font-size:12px;font-weight:750;white-space:nowrap;box-shadow:0 10px 24px rgba(23,32,51,.18);opacity:0;pointer-events:none;transform:translate(-50%,-4px);transition:opacity .16s ease,transform .16s ease}.member:hover::after,.member:focus-visible::after{opacity:1;transform:translate(-50%,0)}.note{padding:14px 16px;border:1px solid #d7e7e2;border-radius:var(--radius);background:var(--soft-teal);color:#315f56;font-size:13px}
+    @media (max-width:920px){header{grid-template-columns:1fr}.top-actions{justify-content:flex-start}.summary-grid,.squad-grid{grid-template-columns:1fr 1fr}}@media (max-width:680px){.page{width:min(100% - 24px,1180px);padding-top:22px}.summary-grid,.squad-grid{grid-template-columns:1fr}.squad-title{flex-direction:column}.tag{width:fit-content}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <h1>Product Squads</h1>
+        <p class="subtitle">Dedicated product delivery view for Corporate Services squads, team members, and product ownership.</p>
+      </div>
+      <nav class="top-actions" aria-label="Navigation">
+        <a class="nav-link" href="/main/#squads">Back to Dashboard</a>
+        <a class="nav-link primary" href="/main/">Home</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="summary-grid" aria-label="Product squad summary">
+        <article class="summary-card"><h2>Product Delivery Structure</h2><p>Four squads own the main product capability areas across core services, platform operations, PSP infrastructure, and bank-market products.</p></article>
+        <article class="summary-card"><h3>Squads</h3><div class="metric">4</div><p>Current product squads</p></article>
+        <article class="summary-card"><h3>Members</h3><div class="metric">22</div><p>Mapped squad members</p></article>
+        <article class="summary-card"><h3>Scope</h3><div class="metric">25</div><p>Owned product areas</p></article>
+      </section>
+
+      <section class="squad-grid" aria-label="Product squads">
+        <article class="squad-card core">
+          <div class="squad-title"><h2>Core Squad</h2><span class="tag">Core + Trust</span></div>
+          <div class="section"><div class="label">Mission</div><p class="mission">Build and maintain core product capabilities and trust services that provide secure, reliable, and standardized access to Corporate Services products.</p></div>
+          <div class="section"><div class="label">Team Members</div><ul class="chip-list"><li class="member" data-role="Technical Product Manager" tabindex="0">Sepehr Beheshti</li><li class="member" data-role="Tech Lead" tabindex="0">Mehdi Ghasemi</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Eilia Nooraei</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Javad Ebrahimi</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Amirhossein Daliri</li></ul></div>
+          <div class="section"><div class="label">Owns</div><ul class="chip-list product-list"><li>Checkout</li><li>KYC</li><li>KYB</li><li>Inquisitor</li><li>Digital Signature</li><li>Gooyal</li></ul></div>
+        </article>
+
+        <article class="squad-card platform">
+          <div class="squad-title"><h2>Platform Squad</h2><span class="tag">Platform + Operations</span></div>
+          <div class="section"><div class="label">Mission</div><p class="mission">Build shared platform and internal operational systems that improve consistency, efficiency, and automation across Corporate Services operations.</p></div>
+          <div class="section"><div class="label">Team Members</div><ul class="chip-list"><li class="member" data-role="Data Product Manager" tabindex="0">Mehdi Jalilian</li><li class="member" data-role="Tech Lead" tabindex="0">Milad Khoshdel</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Fatemeh Maghsoudi</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Sina Ahmadi</li></ul></div>
+          <div class="section"><div class="label">Owns</div><ul class="chip-list product-list"><li>Reconciliation Engine</li><li>Fee Wallet</li><li>Ticketing</li><li>Service Contract Management</li><li>Partner Profile</li><li>Backoffice</li></ul></div>
+        </article>
+
+        <article class="squad-card psp">
+          <div class="squad-title"><h2>PSP Squad</h2><span class="tag">Payment Infrastructure</span></div>
+          <div class="section"><div class="label">Mission</div><p class="mission">Provide reliable payment acceptance infrastructure by integrating with PSPs and improving payment experience, transaction reliability, and reconciliation.</p></div>
+          <div class="section"><div class="label">Team Members</div><ul class="chip-list"><li class="member" data-role="Product Manager" tabindex="0">Ghazal Masoumshahi</li><li class="member" data-role="Tech Lead" tabindex="0">Mohamadjavad Nikbakht</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Sajad Tohidi</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Salar Azimi</li></ul></div>
+          <div class="section"><div class="label">Owns</div><ul class="chip-list product-list"><li>IPG</li><li>IPG Refund</li><li>Repigma</li><li>BACS</li><li>Terminal Management</li></ul></div>
+        </article>
+
+        <article class="squad-card bank">
+          <div class="squad-title"><h2>Bank Market Squad</h2><span class="tag">Bank Market Products</span></div>
+          <div class="section"><div class="label">Mission</div><p class="mission">Build customer-facing banking and financial products that companies use to manage financial operations through a modern integrated experience.</p></div>
+          <div class="section"><div class="label">Team Members</div><ul class="chip-list"><li class="member" data-role="Senior Product Manager" tabindex="0">Ehsan Kazemi</li><li class="member" data-role="Tech Lead" tabindex="0">Hemen Zandi</li><li class="member" data-role="Product Designer" tabindex="0">Amirhossein Pakatchi</li><li class="member" data-role="Product Designer" tabindex="0">Sara Beheshti</li><li class="member" data-role="Mobile Software Engineer" tabindex="0">Sina Abdolahi</li><li class="member" data-role="Frontend Software Engineer" tabindex="0">Ali Abasi</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Hamid Hashemi</li><li class="member" data-role="Backend Software Engineer" tabindex="0">Bahador Nemati</li><li class="member" data-role="Frontend Software Engineer" tabindex="0">Parisa Rahmani</li></ul></div>
+          <div class="section"><div class="label">Owns</div><ul class="chip-list product-list"><li>Corporate Banking Web Application</li><li>Corporate Banking Mobile Application</li><li>Corporate Banking</li><li>Direct Debit</li><li>Via</li><li>Instant Settlement</li><li>Tax System</li><li>ERP Integrations</li></ul></div>
+        </article>
+      </section>
+
+      <div class="note">Hover on each member name to see the role. This page is dedicated to product squad structure only; customer ownership and communication flow remain in the main dashboard.</div>
+    </main>
+  </div>
+</body>
+</html>
