@@ -1,6 +1,29 @@
 # Toman Teams
 
-Static Corporate Services Business Line dashboard.
+Corporate Services Business Line dashboard.
 
 - Main route: `/main/`
-- Password gate: `1212`
+- Login route: `/login`
+- Admin route: `/admin`
+
+## Google Login Setup
+
+The dashboard is protected by Cloudflare Pages Functions and Google OAuth.
+First-time Google accounts create an access request. Admins can approve,
+reject, or revoke access from `/admin`.
+
+Configure these Cloudflare Pages environment variables:
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `SESSION_SECRET`
+- `ADMIN_EMAILS`
+
+Create a Cloudflare KV namespace and bind it to the Pages project as:
+
+- `ACCESS_KV`
+
+Google OAuth redirect URI:
+
+- `https://tomanteams.vibebuilders.ir/auth/callback`
+- Add the `pages.dev` callback too if you test on the Pages preview domain.
