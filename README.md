@@ -9,8 +9,16 @@ Corporate Services Business Line dashboard.
 ## Google Login Setup
 
 The dashboard is protected by Cloudflare Pages Functions and Google OAuth.
-First-time Google accounts create an access request. Admins can approve,
-reject, or revoke access from `/admin`.
+First-time Google accounts create an access request. Admins use an ORBAC
+access model from `/admin` to approve, reject, revoke, or update users.
+
+ORBAC dimensions:
+
+- User: Google account email
+- Role: `viewer`, `manager`, `admin`
+- Organization context: Corporate Services, GTM Squads, Product Squads, Customers Operations, Products Operations
+- Scope: `dashboard`, `customers`, `product-squads`, `communication`, `admin`
+- Permissions: derived from role and stored with the approved access record
 
 Configure these Cloudflare Pages environment variables:
 

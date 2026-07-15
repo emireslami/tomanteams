@@ -2,6 +2,14 @@ const SESSION_COOKIE = "tt_session";
 const STATE_COOKIE = "tt_oauth_state";
 const NEXT_COOKIE = "tt_next";
 const SESSION_TTL = 60 * 60 * 24 * 14;
+const ORBAC_ROLES = ["viewer", "manager", "admin"];
+const ORBAC_ORGS = ["Corporate Services", "GTM Squads", "Product Squads", "Customers Operations", "Products Operations"];
+const ORBAC_SCOPES = ["dashboard", "customers", "product-squads", "communication", "admin"];
+const ORBAC_PERMISSIONS = {
+  viewer: ["view:dashboard"],
+  manager: ["view:dashboard", "view:customers", "view:product-squads"],
+  admin: ["view:dashboard", "view:customers", "view:product-squads", "manage:access"],
+};
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -19,12 +27,12 @@ export async function onRequest(context) {
 
   if (path === "/admin" || path.startsWith("/admin/")) {
     if (!session) return redirect(`/login?next=${encodeURIComponent(path)}`);
-    if (!isAdmin(session.email, env)) return htmlPage("Access denied", `<p>Your account is not allowed to manage access requests.</p><p><a class="button" href="/main/">Back to dashboard</a></p>`, 403);
+    if (!(await canManageAccess(session.email, env))) return htmlPage("Access denied", `<p>Your account is not allowed to manage access requests.</p><p><a class="button" href="/main/">Back to dashboard</a></p>`, 403);
     if (request.method === "POST") return handleAdminAction(request, env);
     return renderAdmin(env, session);
   }
 
-  if (session && (await isApproved(session.email, env))) return context.next();
+  if (session && (await isAuthorized(session.email, path, env))) return context.next();
   return redirect(`/login?next=${encodeURIComponent(path + url.search + url.hash)}`);
 }
 
@@ -44,6 +52,29 @@ async function isApproved(email, env) {
   const normalized = String(email || "").toLowerCase();
   if (isAdmin(normalized, env)) return true;
   return Boolean(await env.ACCESS_KV.get(`approved:${normalized}`));
+}
+
+async function isAuthorized(email, path, env) {
+  const normalized = String(email || "").toLowerCase();
+  if (isAdmin(normalized, env)) return true;
+  const access = await env.ACCESS_KV.get(`approved:${normalized}`, "json");
+  if (!access) return false;
+  return normalizeAccess(access).scopes.includes(scopeForPath(path));
+}
+
+async function canManageAccess(email, env) {
+  const normalized = String(email || "").toLowerCase();
+  if (isAdmin(normalized, env)) return true;
+  const access = await env.ACCESS_KV.get(`approved:${normalized}`, "json");
+  if (!access) return false;
+  const normalizedAccess = normalizeAccess(access);
+  return normalizedAccess.role === "admin" && normalizedAccess.scopes.includes("admin") && normalizedAccess.permissions.includes("manage:access");
+}
+
+function scopeForPath(path) {
+  if (path.startsWith("/product-squads")) return "product-squads";
+  if (path.startsWith("/main")) return "dashboard";
+  return "dashboard";
 }
 
 async function getSession(request, env) {
@@ -137,12 +168,14 @@ async function handleAdminAction(request, env) {
   const form = await request.formData();
   const action = String(form.get("action") || "");
   const email = String(form.get("email") || "").trim().toLowerCase();
+  const access = orbacFromForm(form, action === "approve" ? "viewer" : "viewer");
   if (!email) return redirect("/admin");
   if (action === "approve") {
     const pending = await env.ACCESS_KV.get(`pending:${email}`, "json");
     await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
       email,
       name: pending?.name || email,
+      ...access,
       approvedAt: new Date().toISOString(),
     }));
     await env.ACCESS_KV.delete(`pending:${email}`);
@@ -157,28 +190,110 @@ async function handleAdminAction(request, env) {
     await env.ACCESS_KV.delete(`approved:${email}`);
     await env.ACCESS_KV.put(`rejected:${email}`, JSON.stringify({ email, rejectedAt: new Date().toISOString() }));
   }
+  if (action === "update") {
+    const approved = await env.ACCESS_KV.get(`approved:${email}`, "json");
+    if (approved) {
+      await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
+        ...approved,
+        ...access,
+        updatedAt: new Date().toISOString(),
+      }));
+    }
+  }
   return redirect("/admin");
 }
 
 async function renderAdmin(env, session) {
   const pending = await readList(env, "pending:");
   const approved = await readList(env, "approved:");
-  const pendingRows = pending.length ? pending.map((item) => requestRow(item, ["approve", "reject"])).join("") : "<tr><td colspan=\"4\">No pending requests</td></tr>";
-  const approvedRows = approved.length ? approved.map((item) => requestRow(item, ["revoke"])).join("") : "<tr><td colspan=\"4\">No approved users</td></tr>";
-  return htmlPage("Access Admin", `
+  const pendingRows = pending.length ? pending.map((item) => pendingRequestRow(item)).join("") : "<tr><td colspan=\"6\">No pending requests</td></tr>";
+  const approvedRows = approved.length ? approved.map((item) => approvedUserRow(item)).join("") : "<tr><td colspan=\"7\">No approved users</td></tr>";
+  return htmlPage("ORBAC Access Admin", `
     <p>Signed in as <strong>${escapeHtml(session.email)}</strong>.</p>
     <p><a class="button" href="/main/">Dashboard</a> <a class="button secondary" href="/logout">Logout</a></p>
+    <div class="note"><strong>ORBAC model:</strong> Admin grants access by user identity, role, organization context, resource scope, and permissions.</div>
     <h2>Pending Requests</h2>
-    <table><thead><tr><th>Email</th><th>Name</th><th>Date</th><th>Action</th></tr></thead><tbody>${pendingRows}</tbody></table>
+    <table><thead><tr><th>Email</th><th>Name</th><th>Requested</th><th>Role</th><th>Organization / Scope</th><th>Action</th></tr></thead><tbody>${pendingRows}</tbody></table>
     <h2>Approved Users</h2>
-    <table><thead><tr><th>Email</th><th>Name</th><th>Date</th><th>Action</th></tr></thead><tbody>${approvedRows}</tbody></table>
+    <table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Organization</th><th>Scope</th><th>Permissions</th><th>Action</th></tr></thead><tbody>${approvedRows}</tbody></table>
   `);
 }
 
-function requestRow(item, actions) {
-  const date = item.requestedAt || item.approvedAt || "";
-  const buttons = actions.map((action) => `<form method="post" style="display:inline"><input type="hidden" name="email" value="${escapeHtml(item.email)}"><button name="action" value="${action}">${action}</button></form>`).join(" ");
-  return `<tr><td>${escapeHtml(item.email)}</td><td>${escapeHtml(item.name || "")}</td><td>${escapeHtml(date)}</td><td>${buttons}</td></tr>`;
+function pendingRequestRow(item) {
+  return `<tr>
+    <td>${escapeHtml(item.email)}</td>
+    <td>${escapeHtml(item.name || "")}</td>
+    <td>${escapeHtml(item.requestedAt || "")}</td>
+    <td><span class="pill">Pending</span></td>
+    <td><span class="pill muted">Assigned on approval</span></td>
+    <td>
+      <form method="post" class="orbac-form">
+        <input type="hidden" name="email" value="${escapeHtml(item.email)}">
+        ${roleSelect("role", "viewer")}
+        ${orgSelect("organization", "Corporate Services")}
+        ${scopeSelect("scope", ["dashboard"])}
+        <button name="action" value="approve">Approve</button>
+        <button name="action" value="reject" class="danger">Reject</button>
+      </form>
+    </td>
+  </tr>`;
+}
+
+function approvedUserRow(item) {
+  const access = normalizeAccess(item);
+  return `<tr>
+    <td>${escapeHtml(item.email)}</td>
+    <td>${escapeHtml(item.name || "")}</td>
+    <td><span class="pill">${escapeHtml(access.role)}</span></td>
+    <td>${escapeHtml(access.organization)}</td>
+    <td>${access.scopes.map((scope) => `<span class="pill muted">${escapeHtml(scope)}</span>`).join(" ")}</td>
+    <td>${access.permissions.map((permission) => `<span class="pill permission">${escapeHtml(permission)}</span>`).join(" ")}</td>
+    <td>
+      <form method="post" class="orbac-form">
+        <input type="hidden" name="email" value="${escapeHtml(item.email)}">
+        ${roleSelect("role", access.role)}
+        ${orgSelect("organization", access.organization)}
+        ${scopeSelect("scope", access.scopes)}
+        <button name="action" value="update">Update</button>
+        <button name="action" value="revoke" class="danger">Revoke</button>
+      </form>
+    </td>
+  </tr>`;
+}
+
+function orbacFromForm(form, fallbackRole) {
+  const role = ORBAC_ROLES.includes(String(form.get("role"))) ? String(form.get("role")) : fallbackRole;
+  const organization = ORBAC_ORGS.includes(String(form.get("organization"))) ? String(form.get("organization")) : "Corporate Services";
+  const scopes = form.getAll("scope").map(String).filter((scope) => ORBAC_SCOPES.includes(scope));
+  return {
+    role,
+    organization,
+    scopes: scopes.length ? scopes : ["dashboard"],
+    permissions: ORBAC_PERMISSIONS[role] || ORBAC_PERMISSIONS.viewer,
+  };
+}
+
+function normalizeAccess(item) {
+  const role = ORBAC_ROLES.includes(item.role) ? item.role : "viewer";
+  return {
+    role,
+    organization: ORBAC_ORGS.includes(item.organization) ? item.organization : "Corporate Services",
+    scopes: Array.isArray(item.scopes) && item.scopes.length ? item.scopes.filter((scope) => ORBAC_SCOPES.includes(scope)) : ["dashboard"],
+    permissions: Array.isArray(item.permissions) && item.permissions.length ? item.permissions : ORBAC_PERMISSIONS[role],
+  };
+}
+
+function roleSelect(name, selected) {
+  return `<select name="${name}">${ORBAC_ROLES.map((role) => `<option value="${role}"${role === selected ? " selected" : ""}>${role}</option>`).join("")}</select>`;
+}
+
+function orgSelect(name, selected) {
+  return `<select name="${name}">${ORBAC_ORGS.map((org) => `<option value="${escapeHtml(org)}"${org === selected ? " selected" : ""}>${escapeHtml(org)}</option>`).join("")}</select>`;
+}
+
+function scopeSelect(name, selected) {
+  const selectedSet = new Set(selected);
+  return `<div class="scope-grid">${ORBAC_SCOPES.map((scope) => `<label><input type="checkbox" name="${name}" value="${scope}"${selectedSet.has(scope) ? " checked" : ""}> ${scope}</label>`).join("")}</div>`;
 }
 
 async function readList(env, prefix) {
@@ -242,8 +357,9 @@ function htmlPage(title, body, status = 200) {
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
     body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f7fa;color:#172033;line-height:1.45}
     main{width:min(920px,calc(100% - 40px));margin:56px auto;padding:24px;border:1px solid #dce3ec;border-radius:8px;background:#fff;box-shadow:0 16px 40px rgba(28,43,68,.08)}
-    h1{margin:0 0 12px;font-size:32px;line-height:1.1}h2{margin:28px 0 12px;font-size:20px}p{color:#5f6b7c}.button,button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 13px;border:1px solid #bfd0f7;border-radius:8px;background:#eaf2ff;color:#2f67d8;font:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}.button.secondary{border-color:#dce3ec;background:#fff;color:#34425a}
+    h1{margin:0 0 12px;font-size:32px;line-height:1.1}h2{margin:28px 0 12px;font-size:20px}p{color:#5f6b7c}.button,button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 13px;border:1px solid #bfd0f7;border-radius:8px;background:#eaf2ff;color:#2f67d8;font:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}.button.secondary{border-color:#dce3ec;background:#fff;color:#34425a}button.danger{border-color:#fecaca;background:#fff1f2;color:#be123c}
     table{width:100%;border:1px solid #dce3ec;border-collapse:separate;border-spacing:0;border-radius:8px;overflow:hidden}th,td{padding:12px;border-right:1px solid #dce3ec;border-bottom:1px solid #dce3ec;text-align:left;font-size:13px}th{background:#eef3f8}td:last-child,th:last-child{border-right:0}tr:last-child td{border-bottom:0}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    select{min-height:34px;padding:7px 9px;border:1px solid #dce3ec;border-radius:8px;background:#fff;font:inherit;font-size:13px}.orbac-form{display:grid;gap:8px;min-width:220px}.scope-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.scope-grid label{display:flex;gap:6px;align-items:center;color:#34425a;font-size:12px}.pill{display:inline-flex;margin:2px;padding:4px 7px;border-radius:999px;background:#eaf2ff;color:#2f67d8;font-size:11px;font-weight:800}.pill.muted{background:#eef3f8;color:#34425a}.pill.permission{background:#e8f7f3;color:#18866f}.note{padding:12px 14px;border:1px solid #d7e7e2;border-radius:8px;background:#e8f7f3;color:#315f56}
   </style></head><body><main><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`, {
     status,
     headers: { "content-type": "text/html; charset=utf-8" },
