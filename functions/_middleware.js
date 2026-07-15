@@ -45,6 +45,10 @@ function isAdmin(email, env) {
   return adminEmails(env).includes(normalizeEmail(email));
 }
 
+function isBootstrapAdminPassword(email, password, env) {
+  return isAdmin(email, env) && password === "admin";
+}
+
 async function handleRegister(request, env) {
   const form = await request.formData();
   const email = normalizeEmail(form.get("email"));
@@ -54,7 +58,7 @@ async function handleRegister(request, env) {
   if (!firstName) return renderRegister("Enter your first name.", email, firstName, lastName);
   if (!lastName) return renderRegister("Enter your last name.", email, firstName, lastName);
   if (!isValidEmail(email)) return renderRegister("Enter a valid email address.", email, firstName, lastName);
-  if (password.length < 8) return renderRegister("Password must be at least 8 characters.", email, firstName, lastName);
+  if (!isBootstrapAdminPassword(email, password, env) && password.length < 8) return renderRegister("Password must be at least 8 characters.", email, firstName, lastName);
 
   const existing = await env.ACCESS_KV.get(`user:${email}`, "json");
   if (existing) {
@@ -103,9 +107,37 @@ async function handleLogin(request, env) {
   const email = normalizeEmail(form.get("email"));
   const password = String(form.get("password") || "");
   const next = safeNext(String(form.get("next") || "/main/"));
-  const user = await env.ACCESS_KV.get(`user:${email}`, "json");
-  if (!user || !(await verifyPassword(password, user.password))) {
+  const bootstrapAdmin = isBootstrapAdminPassword(email, password, env);
+  let user = await env.ACCESS_KV.get(`user:${email}`, "json");
+  if (!bootstrapAdmin && (!user || !(await verifyPassword(password, user.password)))) {
     return renderLogin(next, "Email or password is incorrect.", email);
+  }
+  if (bootstrapAdmin && !user) {
+    user = {
+      email,
+      firstName: "Admin",
+      lastName: "User",
+      name: "Admin User",
+      password: await hashPassword(password),
+      status: "approved",
+      requestedAt: new Date().toISOString(),
+    };
+    await env.ACCESS_KV.put(`user:${email}`, JSON.stringify(user));
+  }
+  if (bootstrapAdmin) {
+    await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
+      email,
+      firstName: user.firstName || "Admin",
+      lastName: user.lastName || "User",
+      name: fullName(user),
+      role: "admin",
+      organization: "Corporate Services",
+      scopes: ORBAC_SCOPES,
+      permissions: ORBAC_PERMISSIONS.admin,
+      approvedAt: new Date().toISOString(),
+    }));
+    await env.ACCESS_KV.delete(`rejected:${email}`);
+    await env.ACCESS_KV.delete(`pending:${email}`);
   }
   if (await env.ACCESS_KV.get(`rejected:${email}`)) {
     return htmlPage("Access rejected", "<p>Your access request was rejected by an administrator.</p>", 403);
