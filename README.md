@@ -44,3 +44,15 @@ Google OAuth redirect URI:
 5. Bind that namespace to the Pages project with the variable name `ACCESS_KV`.
 6. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_EMAILS=a.eslami@toman.ir` as Pages environment variables.
 7. Redeploy the Pages project.
+
+You can set the Pages secrets from your Mac with:
+
+```bash
+export GOOGLE_CLIENT_ID="your-google-oauth-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+export ADMIN_EMAILS="a.eslami@toman.ir"
+./scripts/setup-cloudflare-auth.sh
+```
+
+The script still expects the `ACCESS_KV` namespace binding to be created in
+Cloudflare Pages settings.
