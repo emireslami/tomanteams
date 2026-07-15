@@ -16,7 +16,6 @@ Configure these Cloudflare Pages environment variables:
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `SESSION_SECRET`
 - `ADMIN_EMAILS`
 
 Create a Cloudflare KV namespace and bind it to the Pages project as:
@@ -27,3 +26,13 @@ Google OAuth redirect URI:
 
 - `https://tomanteams.vibebuilders.ir/auth/callback`
 - Add the `pages.dev` callback too if you test on the Pages preview domain.
+
+## Cloudflare Setup Checklist
+
+1. In Google Cloud Console, create an OAuth 2.0 Client ID for a Web Application.
+2. Add the authorized redirect URI: `https://tomanteams.vibebuilders.ir/auth/callback`.
+3. In Cloudflare Pages, create or select the `tomanteams` Pages project.
+4. Create a KV namespace for access requests and approved users.
+5. Bind that namespace to the Pages project with the variable name `ACCESS_KV`.
+6. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_EMAILS` as Pages environment variables.
+7. Redeploy the Pages project.

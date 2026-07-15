@@ -1,1 +1,3 @@
-name = "tomanteams"\nmain = "worker.js"\ncompatibility_date = "2026-07-11"\nworkers_dev = true\n
+name = "tomanteams"
+compatibility_date = "2026-07-15"
+pages_build_output_dir = "."

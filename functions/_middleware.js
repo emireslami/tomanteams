@@ -29,7 +29,7 @@ export async function onRequest(context) {
 }
 
 function isConfigured(env) {
-  return env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.ACCESS_KV && env.SESSION_SECRET;
+  return env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.ACCESS_KV;
 }
 
 function adminEmails(env) {
@@ -204,7 +204,6 @@ function renderSetup(request) {
     <ul>
       <li><code>GOOGLE_CLIENT_ID</code></li>
       <li><code>GOOGLE_CLIENT_SECRET</code></li>
-      <li><code>SESSION_SECRET</code></li>
       <li><code>ADMIN_EMAILS</code></li>
       <li><code>ACCESS_KV</code> KV binding</li>
     </ul>
