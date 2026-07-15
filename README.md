@@ -3,53 +3,56 @@
 Corporate Services Business Line dashboard.
 
 - Main route: `/main/`
+- Register route: `/register`
 - Login route: `/login`
 - Admin route: `/admin`
 
-## Google Login Setup
+## Email Registration Flow
 
-The dashboard is protected by Cloudflare Pages Functions and Google OAuth.
-First-time Google accounts create an access request. Admins use an ORBAC
-access model from `/admin` to approve, reject, revoke, or update users.
+The dashboard is protected by Cloudflare Pages Functions.
+Users register with email and password, then wait for admin approval.
+Passwords are stored in KV as salted SHA-256 hashes, not plain text.
 
-ORBAC dimensions:
+Flow:
 
-- User: Google account email
+1. User opens `/register`.
+2. User enters name, email, and password.
+3. A pending access request is stored in KV.
+4. Admin opens `/admin`.
+5. Admin approves, rejects, revokes, or updates access through ORBAC.
+6. Approved users can log in from `/login`.
+
+OTP by email can be added later before or after password verification.
+
+## ORBAC Model
+
+- User: registered email address
 - Role: `viewer`, `manager`, `admin`
 - Organization context: Corporate Services, GTM Squads, Product Squads, Customers Operations, Products Operations
 - Scope: `dashboard`, `customers`, `product-squads`, `communication`, `admin`
 - Permissions: derived from role and stored with the approved access record
 
-Configure these Cloudflare Pages environment variables:
+## Cloudflare Setup
 
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
+Configure this Cloudflare Pages environment variable:
+
 - `ADMIN_EMAILS=a.eslami@toman.ir`
 
 Create a Cloudflare KV namespace and bind it to the Pages project as:
 
 - `ACCESS_KV`
 
-Google OAuth redirect URI:
+Setup checklist:
 
-- `https://tomanteams.vibebuilders.ir/auth/callback`
-- Add the `pages.dev` callback too if you test on the Pages preview domain.
+1. In Cloudflare Pages, create or select the `tomanteams` Pages project.
+2. Create a KV namespace for users, requests, approvals, and sessions.
+3. Bind that namespace to the Pages project with the variable name `ACCESS_KV`.
+4. Add `ADMIN_EMAILS=a.eslami@toman.ir` as a Pages environment variable.
+5. Redeploy the Pages project.
 
-## Cloudflare Setup Checklist
-
-1. In Google Cloud Console, create an OAuth 2.0 Client ID for a Web Application.
-2. Add the authorized redirect URI: `https://tomanteams.vibebuilders.ir/auth/callback`.
-3. In Cloudflare Pages, create or select the `tomanteams` Pages project.
-4. Create a KV namespace for access requests and approved users.
-5. Bind that namespace to the Pages project with the variable name `ACCESS_KV`.
-6. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_EMAILS=a.eslami@toman.ir` as Pages environment variables.
-7. Redeploy the Pages project.
-
-You can set the Pages secrets from your Mac with:
+You can set the admin email from your Mac with:
 
 ```bash
-export GOOGLE_CLIENT_ID="your-google-oauth-client-id"
-export GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
 export ADMIN_EMAILS="a.eslami@toman.ir"
 ./scripts/setup-cloudflare-auth.sh
 ```

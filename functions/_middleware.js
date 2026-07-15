@@ -1,6 +1,4 @@
 const SESSION_COOKIE = "tt_session";
-const STATE_COOKIE = "tt_oauth_state";
-const NEXT_COOKIE = "tt_next";
 const SESSION_TTL = 60 * 60 * 24 * 14;
 const ORBAC_ROLES = ["viewer", "manager", "admin"];
 const ORBAC_ORGS = ["Corporate Services", "GTM Squads", "Product Squads", "Customers Operations", "Products Operations"];
@@ -16,12 +14,11 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (path === "/login") return renderLogin(request, env);
-  if (path === "/auth/google") return startGoogleLogin(request, env);
-  if (path === "/auth/callback") return handleGoogleCallback(request, env);
-  if (path === "/logout") return logout();
+  if (!isConfigured(env)) return renderSetup();
 
-  if (!isConfigured(env)) return renderSetup(request);
+  if (path === "/register") return request.method === "POST" ? handleRegister(request, env) : renderRegister();
+  if (path === "/login") return request.method === "POST" ? handleLogin(request, env) : renderLogin(url.searchParams.get("next") || "/main/");
+  if (path === "/logout") return logout();
 
   const session = await getSession(request, env);
 
@@ -37,25 +34,99 @@ export async function onRequest(context) {
 }
 
 function isConfigured(env) {
-  return env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.ACCESS_KV;
+  return env.ACCESS_KV;
 }
 
 function adminEmails(env) {
-  return String(env.ADMIN_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
+  return String(env.ADMIN_EMAILS || "").split(",").map((email) => normalizeEmail(email)).filter(Boolean);
 }
 
 function isAdmin(email, env) {
-  return adminEmails(env).includes(String(email || "").toLowerCase());
+  return adminEmails(env).includes(normalizeEmail(email));
+}
+
+async function handleRegister(request, env) {
+  const form = await request.formData();
+  const email = normalizeEmail(form.get("email"));
+  const password = String(form.get("password") || "");
+  const name = String(form.get("name") || "").trim();
+  if (!isValidEmail(email)) return renderRegister("Enter a valid email address.", email, name);
+  if (password.length < 8) return renderRegister("Password must be at least 8 characters.", email, name);
+
+  const existing = await env.ACCESS_KV.get(`user:${email}`, "json");
+  if (existing) {
+    return htmlPage("Already registered", `<p>This email is already registered.</p><p><a class="button" href="/login">Go to login</a></p>`, 409);
+  }
+
+  const passwordRecord = await hashPassword(password);
+  const user = {
+    email,
+    name: name || email,
+    password: passwordRecord,
+    status: isAdmin(email, env) ? "approved" : "pending",
+    requestedAt: new Date().toISOString(),
+  };
+  await env.ACCESS_KV.put(`user:${email}`, JSON.stringify(user));
+
+  if (isAdmin(email, env)) {
+    await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
+      email,
+      name: user.name,
+      role: "admin",
+      organization: "Corporate Services",
+      scopes: ORBAC_SCOPES,
+      permissions: ORBAC_PERMISSIONS.admin,
+      approvedAt: new Date().toISOString(),
+    }));
+    return htmlPage("Admin registered", `<p>Your admin account is ready.</p><p><a class="button" href="/login">Login</a></p>`);
+  }
+
+  await env.ACCESS_KV.put(`pending:${email}`, JSON.stringify({
+    email,
+    name: user.name,
+    requestedAt: user.requestedAt,
+  }));
+  return htmlPage("Access requested", `<p>Your account <strong>${escapeHtml(email)}</strong> was registered and sent for admin approval.</p><p><a class="button" href="/login">Back to login</a></p>`, 202);
+}
+
+async function handleLogin(request, env) {
+  const form = await request.formData();
+  const email = normalizeEmail(form.get("email"));
+  const password = String(form.get("password") || "");
+  const next = safeNext(String(form.get("next") || "/main/"));
+  const user = await env.ACCESS_KV.get(`user:${email}`, "json");
+  if (!user || !(await verifyPassword(password, user.password))) {
+    return renderLogin(next, "Email or password is incorrect.", email);
+  }
+  if (await env.ACCESS_KV.get(`rejected:${email}`)) {
+    return htmlPage("Access rejected", "<p>Your access request was rejected by an administrator.</p>", 403);
+  }
+  if (!(await isApproved(email, env))) {
+    await env.ACCESS_KV.put(`pending:${email}`, JSON.stringify({
+      email,
+      name: user.name || email,
+      requestedAt: user.requestedAt || new Date().toISOString(),
+    }));
+    return htmlPage("Access pending", `<p>Your account is registered, but admin approval is still pending.</p><p><a class="button" href="/login">Back to login</a></p>`, 202);
+  }
+
+  const sessionId = crypto.randomUUID();
+  await env.ACCESS_KV.put(`session:${sessionId}`, JSON.stringify({
+    email,
+    name: user.name || email,
+    createdAt: new Date().toISOString(),
+  }), { expirationTtl: SESSION_TTL });
+  return redirect(next, [cookie(SESSION_COOKIE, sessionId, { maxAge: SESSION_TTL })]);
 }
 
 async function isApproved(email, env) {
-  const normalized = String(email || "").toLowerCase();
+  const normalized = normalizeEmail(email);
   if (isAdmin(normalized, env)) return true;
   return Boolean(await env.ACCESS_KV.get(`approved:${normalized}`));
 }
 
 async function isAuthorized(email, path, env) {
-  const normalized = String(email || "").toLowerCase();
+  const normalized = normalizeEmail(email);
   if (isAdmin(normalized, env)) return true;
   const access = await env.ACCESS_KV.get(`approved:${normalized}`, "json");
   if (!access) return false;
@@ -63,7 +134,7 @@ async function isAuthorized(email, path, env) {
 }
 
 async function canManageAccess(email, env) {
-  const normalized = String(email || "").toLowerCase();
+  const normalized = normalizeEmail(email);
   if (isAdmin(normalized, env)) return true;
   const access = await env.ACCESS_KV.get(`approved:${normalized}`, "json");
   if (!access) return false;
@@ -85,110 +156,34 @@ async function getSession(request, env) {
   return value;
 }
 
-async function startGoogleLogin(request, env) {
-  if (!isConfigured(env)) return renderSetup(request);
-  const url = new URL(request.url);
-  const state = crypto.randomUUID();
-  const next = safeNext(url.searchParams.get("next") || "/main/");
-  const redirectUri = `${url.origin}/auth/callback`;
-  const google = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-  google.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
-  google.searchParams.set("redirect_uri", redirectUri);
-  google.searchParams.set("response_type", "code");
-  google.searchParams.set("scope", "openid email profile");
-  google.searchParams.set("state", state);
-  google.searchParams.set("prompt", "select_account");
-  return redirect(google.toString(), [
-    cookie(STATE_COOKIE, state, { maxAge: 600 }),
-    cookie(NEXT_COOKIE, next, { maxAge: 600 }),
-  ]);
-}
-
-async function handleGoogleCallback(request, env) {
-  if (!isConfigured(env)) return renderSetup(request);
-  const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
-  if (!code || !state || state !== getCookie(request, STATE_COOKIE)) {
-    return htmlPage("Login failed", "<p>The Google login response could not be verified.</p><p><a class=\"button\" href=\"/login\">Try again</a></p>", 400);
-  }
-
-  const redirectUri = `${url.origin}/auth/callback`;
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    }),
-  });
-  if (!tokenResponse.ok) return htmlPage("Login failed", "<p>Google did not accept the login response.</p><p><a class=\"button\" href=\"/login\">Try again</a></p>", 400);
-
-  const token = await tokenResponse.json();
-  const userResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { authorization: `Bearer ${token.access_token}` },
-  });
-  if (!userResponse.ok) return htmlPage("Login failed", "<p>Could not read your Google account profile.</p><p><a class=\"button\" href=\"/login\">Try again</a></p>", 400);
-
-  const profile = await userResponse.json();
-  const email = String(profile.email || "").toLowerCase();
-  if (!email || !profile.email_verified) return htmlPage("Login failed", "<p>Your Google email address is not verified.</p>", 403);
-
-  const rejected = await env.ACCESS_KV.get(`rejected:${email}`);
-  if (rejected && !isAdmin(email, env)) return htmlPage("Access rejected", "<p>Your access request was rejected by an administrator.</p>", 403);
-
-  if (await isApproved(email, env)) {
-    const sessionId = crypto.randomUUID();
-    await env.ACCESS_KV.put(`session:${sessionId}`, JSON.stringify({
-      email,
-      name: profile.name || email,
-      picture: profile.picture || "",
-      createdAt: new Date().toISOString(),
-    }), { expirationTtl: SESSION_TTL });
-    return redirect(safeNext(getCookie(request, NEXT_COOKIE) || "/main/"), [
-      cookie(SESSION_COOKIE, sessionId, { maxAge: SESSION_TTL }),
-      cookie(STATE_COOKIE, "", { maxAge: 0 }),
-      cookie(NEXT_COOKIE, "", { maxAge: 0 }),
-    ]);
-  }
-
-  await env.ACCESS_KV.put(`pending:${email}`, JSON.stringify({
-    email,
-    name: profile.name || email,
-    picture: profile.picture || "",
-    requestedAt: new Date().toISOString(),
-  }));
-  return htmlPage("Access requested", `<p>Your Google account <strong>${escapeHtml(email)}</strong> has requested access.</p><p>An administrator can approve or reject it from <code>/admin</code>.</p><p><a class="button" href="/login">Use another account</a></p>`, 202);
-}
-
 async function handleAdminAction(request, env) {
   const form = await request.formData();
   const action = String(form.get("action") || "");
-  const email = String(form.get("email") || "").trim().toLowerCase();
-  const access = orbacFromForm(form, action === "approve" ? "viewer" : "viewer");
+  const email = normalizeEmail(form.get("email"));
+  const access = orbacFromForm(form, "viewer");
   if (!email) return redirect("/admin");
+  const user = await env.ACCESS_KV.get(`user:${email}`, "json");
   if (action === "approve") {
-    const pending = await env.ACCESS_KV.get(`pending:${email}`, "json");
     await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
       email,
-      name: pending?.name || email,
+      name: user?.name || email,
       ...access,
       approvedAt: new Date().toISOString(),
     }));
     await env.ACCESS_KV.delete(`pending:${email}`);
     await env.ACCESS_KV.delete(`rejected:${email}`);
+    if (user) await env.ACCESS_KV.put(`user:${email}`, JSON.stringify({ ...user, status: "approved" }));
   }
   if (action === "reject") {
     await env.ACCESS_KV.put(`rejected:${email}`, JSON.stringify({ email, rejectedAt: new Date().toISOString() }));
     await env.ACCESS_KV.delete(`pending:${email}`);
     await env.ACCESS_KV.delete(`approved:${email}`);
+    if (user) await env.ACCESS_KV.put(`user:${email}`, JSON.stringify({ ...user, status: "rejected" }));
   }
   if (action === "revoke") {
     await env.ACCESS_KV.delete(`approved:${email}`);
     await env.ACCESS_KV.put(`rejected:${email}`, JSON.stringify({ email, rejectedAt: new Date().toISOString() }));
+    if (user) await env.ACCESS_KV.put(`user:${email}`, JSON.stringify({ ...user, status: "rejected" }));
   }
   if (action === "update") {
     const approved = await env.ACCESS_KV.get(`approved:${email}`, "json");
@@ -302,23 +297,36 @@ async function readList(env, prefix) {
   return rows.filter(Boolean).sort((a, b) => String(b.requestedAt || b.approvedAt || "").localeCompare(String(a.requestedAt || a.approvedAt || "")));
 }
 
-function renderLogin(request, env) {
-  if (!isConfigured(env)) return renderSetup(request);
-  const url = new URL(request.url);
-  const next = safeNext(url.searchParams.get("next") || "/main/");
-  return htmlPage("Sign in", `
-    <p>Use your Google account to access the Corporate Services dashboard.</p>
-    <p>First-time users will request access and wait for admin approval.</p>
-    <p><a class="button" href="/auth/google?next=${encodeURIComponent(next)}">Continue with Google</a></p>
+function renderLogin(next = "/main/", error = "", email = "") {
+  return htmlPage("Login", `
+    ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+    <form method="post" class="auth-form">
+      <input type="hidden" name="next" value="${escapeHtml(safeNext(next))}">
+      <label>Email<input name="email" type="email" autocomplete="email" value="${escapeHtml(email)}" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Login</button>
+    </form>
+    <p>Need access? <a href="/register">Register and request access</a></p>
   `);
 }
 
-function renderSetup(request) {
+function renderRegister(error = "", email = "", name = "") {
+  return htmlPage("Register", `
+    ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+    <form method="post" class="auth-form">
+      <label>Name<input name="name" autocomplete="name" value="${escapeHtml(name)}"></label>
+      <label>Email<input name="email" type="email" autocomplete="email" value="${escapeHtml(email)}" required></label>
+      <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button type="submit">Register and request access</button>
+    </form>
+    <p>Already registered? <a href="/login">Login</a></p>
+  `);
+}
+
+function renderSetup() {
   return htmlPage("Authentication setup required", `
-    <p>Google login is enabled in code, but Cloudflare environment variables and KV are not configured yet.</p>
+    <p>Email/password registration is enabled, but Cloudflare KV is not configured yet.</p>
     <ul>
-      <li><code>GOOGLE_CLIENT_ID</code></li>
-      <li><code>GOOGLE_CLIENT_SECRET</code></li>
       <li><code>ADMIN_EMAILS</code></li>
       <li><code>ACCESS_KV</code> KV binding</li>
     </ul>
@@ -332,8 +340,28 @@ function logout() {
 function safeNext(value) {
   const next = String(value || "/main/");
   if (!next.startsWith("/") || next.startsWith("//")) return "/main/";
-  if (next.startsWith("/auth/") || next.startsWith("/login")) return "/main/";
+  if (next.startsWith("/register") || next.startsWith("/login")) return "/main/";
   return next;
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function hashPassword(password, salt = crypto.randomUUID()) {
+  const data = new TextEncoder().encode(`${salt}:${password}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return { salt, hash: [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("") };
+}
+
+async function verifyPassword(password, record) {
+  if (!record?.salt || !record?.hash) return false;
+  const candidate = await hashPassword(password, record.salt);
+  return candidate.hash === record.hash;
 }
 
 function getCookie(request, name) {
@@ -357,9 +385,9 @@ function htmlPage(title, body, status = 200) {
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
     body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f7fa;color:#172033;line-height:1.45}
     main{width:min(920px,calc(100% - 40px));margin:56px auto;padding:24px;border:1px solid #dce3ec;border-radius:8px;background:#fff;box-shadow:0 16px 40px rgba(28,43,68,.08)}
-    h1{margin:0 0 12px;font-size:32px;line-height:1.1}h2{margin:28px 0 12px;font-size:20px}p{color:#5f6b7c}.button,button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 13px;border:1px solid #bfd0f7;border-radius:8px;background:#eaf2ff;color:#2f67d8;font:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}.button.secondary{border-color:#dce3ec;background:#fff;color:#34425a}button.danger{border-color:#fecaca;background:#fff1f2;color:#be123c}
+    h1{margin:0 0 12px;font-size:32px;line-height:1.1}h2{margin:28px 0 12px;font-size:20px}p{color:#5f6b7c}a{color:#2f67d8;font-weight:800}.button,button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 13px;border:1px solid #bfd0f7;border-radius:8px;background:#eaf2ff;color:#2f67d8;font:inherit;font-size:13px;font-weight:800;text-decoration:none;cursor:pointer}.button.secondary{border-color:#dce3ec;background:#fff;color:#34425a}button.danger{border-color:#fecaca;background:#fff1f2;color:#be123c}
     table{width:100%;border:1px solid #dce3ec;border-collapse:separate;border-spacing:0;border-radius:8px;overflow:hidden}th,td{padding:12px;border-right:1px solid #dce3ec;border-bottom:1px solid #dce3ec;text-align:left;font-size:13px}th{background:#eef3f8}td:last-child,th:last-child{border-right:0}tr:last-child td{border-bottom:0}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-    select{min-height:34px;padding:7px 9px;border:1px solid #dce3ec;border-radius:8px;background:#fff;font:inherit;font-size:13px}.orbac-form{display:grid;gap:8px;min-width:220px}.scope-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.scope-grid label{display:flex;gap:6px;align-items:center;color:#34425a;font-size:12px}.pill{display:inline-flex;margin:2px;padding:4px 7px;border-radius:999px;background:#eaf2ff;color:#2f67d8;font-size:11px;font-weight:800}.pill.muted{background:#eef3f8;color:#34425a}.pill.permission{background:#e8f7f3;color:#18866f}.note{padding:12px 14px;border:1px solid #d7e7e2;border-radius:8px;background:#e8f7f3;color:#315f56}
+    input,select{min-height:38px;padding:8px 10px;border:1px solid #dce3ec;border-radius:8px;background:#fff;font:inherit;font-size:13px}.auth-form,.orbac-form{display:grid;gap:10px}.auth-form{max-width:420px}.auth-form label{display:grid;gap:6px;color:#34425a;font-size:13px;font-weight:800}.orbac-form{min-width:220px}.scope-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.scope-grid label{display:flex;gap:6px;align-items:center;color:#34425a;font-size:12px}.pill{display:inline-flex;margin:2px;padding:4px 7px;border-radius:999px;background:#eaf2ff;color:#2f67d8;font-size:11px;font-weight:800}.pill.muted{background:#eef3f8;color:#34425a}.pill.permission{background:#e8f7f3;color:#18866f}.note{padding:12px 14px;border:1px solid #d7e7e2;border-radius:8px;background:#e8f7f3;color:#315f56}.error{padding:10px 12px;border:1px solid #fecaca;border-radius:8px;background:#fff1f2;color:#be123c}
   </style></head><body><main><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`, {
     status,
     headers: { "content-type": "text/html; charset=utf-8" },
