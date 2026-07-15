@@ -49,9 +49,12 @@ async function handleRegister(request, env) {
   const form = await request.formData();
   const email = normalizeEmail(form.get("email"));
   const password = String(form.get("password") || "");
-  const name = String(form.get("name") || "").trim();
-  if (!isValidEmail(email)) return renderRegister("Enter a valid email address.", email, name);
-  if (password.length < 8) return renderRegister("Password must be at least 8 characters.", email, name);
+  const firstName = String(form.get("firstName") || "").trim();
+  const lastName = String(form.get("lastName") || "").trim();
+  if (!firstName) return renderRegister("Enter your first name.", email, firstName, lastName);
+  if (!lastName) return renderRegister("Enter your last name.", email, firstName, lastName);
+  if (!isValidEmail(email)) return renderRegister("Enter a valid email address.", email, firstName, lastName);
+  if (password.length < 8) return renderRegister("Password must be at least 8 characters.", email, firstName, lastName);
 
   const existing = await env.ACCESS_KV.get(`user:${email}`, "json");
   if (existing) {
@@ -61,7 +64,9 @@ async function handleRegister(request, env) {
   const passwordRecord = await hashPassword(password);
   const user = {
     email,
-    name: name || email,
+    firstName,
+    lastName,
+    name: fullName({ firstName, lastName, email }),
     password: passwordRecord,
     status: isAdmin(email, env) ? "approved" : "pending",
     requestedAt: new Date().toISOString(),
@@ -71,7 +76,9 @@ async function handleRegister(request, env) {
   if (isAdmin(email, env)) {
     await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
       email,
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      name: fullName(user),
       role: "admin",
       organization: "Corporate Services",
       scopes: ORBAC_SCOPES,
@@ -83,7 +90,9 @@ async function handleRegister(request, env) {
 
   await env.ACCESS_KV.put(`pending:${email}`, JSON.stringify({
     email,
-    name: user.name,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    name: fullName(user),
     requestedAt: user.requestedAt,
   }));
   return htmlPage("Access requested", `<p>Your account <strong>${escapeHtml(email)}</strong> was registered and sent for admin approval.</p><p><a class="button" href="/login">Back to login</a></p>`, 202);
@@ -104,7 +113,9 @@ async function handleLogin(request, env) {
   if (!(await isApproved(email, env))) {
     await env.ACCESS_KV.put(`pending:${email}`, JSON.stringify({
       email,
-      name: user.name || email,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      name: fullName(user),
       requestedAt: user.requestedAt || new Date().toISOString(),
     }));
     return htmlPage("Access pending", `<p>Your account is registered, but admin approval is still pending.</p><p><a class="button" href="/login">Back to login</a></p>`, 202);
@@ -113,7 +124,9 @@ async function handleLogin(request, env) {
   const sessionId = crypto.randomUUID();
   await env.ACCESS_KV.put(`session:${sessionId}`, JSON.stringify({
     email,
-    name: user.name || email,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    name: fullName(user),
     createdAt: new Date().toISOString(),
   }), { expirationTtl: SESSION_TTL });
   return redirect(next, [cookie(SESSION_COOKIE, sessionId, { maxAge: SESSION_TTL })]);
@@ -166,7 +179,9 @@ async function handleAdminAction(request, env) {
   if (action === "approve") {
     await env.ACCESS_KV.put(`approved:${email}`, JSON.stringify({
       email,
-      name: user?.name || email,
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      name: fullName(user || { email }),
       ...access,
       approvedAt: new Date().toISOString(),
     }));
@@ -217,7 +232,7 @@ async function renderAdmin(env, session) {
 function pendingRequestRow(item) {
   return `<tr>
     <td>${escapeHtml(item.email)}</td>
-    <td>${escapeHtml(item.name || "")}</td>
+    <td>${escapeHtml(fullName(item))}</td>
     <td>${escapeHtml(item.requestedAt || "")}</td>
     <td><span class="pill">Pending</span></td>
     <td><span class="pill muted">Assigned on approval</span></td>
@@ -238,7 +253,7 @@ function approvedUserRow(item) {
   const access = normalizeAccess(item);
   return `<tr>
     <td>${escapeHtml(item.email)}</td>
-    <td>${escapeHtml(item.name || "")}</td>
+    <td>${escapeHtml(fullName(item))}</td>
     <td><span class="pill">${escapeHtml(access.role)}</span></td>
     <td>${escapeHtml(access.organization)}</td>
     <td>${access.scopes.map((scope) => `<span class="pill muted">${escapeHtml(scope)}</span>`).join(" ")}</td>
@@ -310,11 +325,12 @@ function renderLogin(next = "/main/", error = "", email = "") {
   `);
 }
 
-function renderRegister(error = "", email = "", name = "") {
+function renderRegister(error = "", email = "", firstName = "", lastName = "") {
   return htmlPage("Register", `
     ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
     <form method="post" class="auth-form">
-      <label>Name<input name="name" autocomplete="name" value="${escapeHtml(name)}"></label>
+      <label>First Name<input name="firstName" autocomplete="given-name" value="${escapeHtml(firstName)}" required></label>
+      <label>Last Name<input name="lastName" autocomplete="family-name" value="${escapeHtml(lastName)}" required></label>
       <label>Email<input name="email" type="email" autocomplete="email" value="${escapeHtml(email)}" required></label>
       <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
       <button type="submit">Register and request access</button>
@@ -350,6 +366,12 @@ function normalizeEmail(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function fullName(value = {}) {
+  const first = String(value.firstName || "").trim();
+  const last = String(value.lastName || "").trim();
+  return [first, last].filter(Boolean).join(" ") || value.name || value.email || "";
 }
 
 async function hashPassword(password, salt = crypto.randomUUID()) {

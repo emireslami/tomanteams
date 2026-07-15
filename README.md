@@ -16,7 +16,7 @@ Passwords are stored in KV as salted SHA-256 hashes, not plain text.
 Flow:
 
 1. User opens `/register`.
-2. User enters name, email, and password.
+2. User enters first name, last name, email, and password.
 3. A pending access request is stored in KV.
 4. Admin opens `/admin`.
 5. Admin approves, rejects, revokes, or updates access through ORBAC.
