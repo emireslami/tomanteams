@@ -16,6 +16,7 @@ export async function onRequest(context) {
 
   if (!isConfigured(env)) return renderSetup();
 
+  if (path === "/auth/session") return renderSession(request, env);
   if (path === "/register") return request.method === "POST" ? handleRegister(request, env) : renderRegister();
   if (path === "/login") return request.method === "POST" ? handleLogin(request, env) : renderLogin(url.searchParams.get("next") || "/main/");
   if (path === "/logout") return logout();
@@ -199,6 +200,16 @@ async function getSession(request, env) {
   const value = await env.ACCESS_KV.get(`session:${id}`, "json");
   if (!value?.email) return null;
   return value;
+}
+
+async function renderSession(request, env) {
+  const session = await getSession(request, env);
+  const email = normalizeEmail(session?.email);
+  return jsonResponse({
+    authenticated: Boolean(email),
+    email,
+    isBootstrapAdmin: email === "a.eslami@toman.ir" && isAdmin(email, env),
+  });
 }
 
 async function handleAdminAction(request, env) {
@@ -433,6 +444,13 @@ function redirect(location, cookies = []) {
   const headers = new Headers({ location });
   cookies.forEach((value) => headers.append("set-cookie", value));
   return new Response(null, { status: 302, headers });
+}
+
+function jsonResponse(value, status = 200) {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
 }
 
 function htmlPage(title, body, status = 200) {
