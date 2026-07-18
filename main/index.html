@@ -175,7 +175,7 @@
     const routes=["overview","intro","functions","squads","customers","communication"];
     const routeHistory=[];
     const customerSheetDataUrl="https://docs.google.com/spreadsheets/d/12jLe3RRJzJ3HyoVdNTey4H5sGvc6NjVHVu4loAbBCtc/gviz/tq";
-    const productSquadSheetDataUrl="https://docs.google.com/spreadsheets/d/1i8pvwZOosvnM9QKinpc3z9RpHgl8kxkK/gviz/tq";
+    const productSquadSheetDataUrl="https://docs.google.com/spreadsheets/d/1Kft_9yMT6_jAZb54EI4d0OSi9kDCWOGJ/gviz/tq";
     function routeParts(){const raw=window.location.hash.replace("#","")||"overview";const [route,query=""]=raw.split("?");return{requestedRoute:route,params:new URLSearchParams(query)}}
     function routeHistoryKey(route,params){const query=params.toString();return query?`${route}?${query}`:route}
     function setActiveRoute(){const parts=routeParts();const activeRoute=routes.includes(parts.requestedRoute)?parts.requestedRoute:"overview";const activeKey=routeHistoryKey(activeRoute,parts.params);document.querySelectorAll("[data-route]").forEach((view)=>{view.classList.toggle("active",view.dataset.route===activeRoute)});document.querySelectorAll("[data-route-link]").forEach((link)=>{link.classList.toggle("active",link.dataset.routeLink===activeRoute)});if(routeHistory[routeHistory.length-1]!==activeKey)routeHistory.push(activeKey);if(parts.requestedRoute!==activeRoute){window.location.hash=activeRoute}if(activeRoute==="customers"){applyCustomerRouteParams(parts.params);filterCustomers()}}

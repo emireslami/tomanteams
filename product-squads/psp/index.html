@@ -36,7 +36,7 @@
     </main>
   </div>
   <script>
-    const productSquadSheetDataUrl="https://docs.google.com/spreadsheets/d/1i8pvwZOosvnM9QKinpc3z9RpHgl8kxkK/gviz/tq";
+    const productSquadSheetDataUrl="https://docs.google.com/spreadsheets/d/1Kft_9yMT6_jAZb54EI4d0OSi9kDCWOGJ/gviz/tq";
     function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]))}
     function cellValue(cell){if(!cell)return"";return cell.f??cell.v??""}
     function loadProductSquadSheetViaJsonp(){return new Promise((resolve,reject)=>{const callbackName=`receiveProductSquadSheet_${Date.now()}`;const script=document.createElement("script");const timeout=window.setTimeout(()=>{cleanup();reject(new Error("Product squad Google Sheet request timed out"))},12000);function cleanup(){window.clearTimeout(timeout);delete window[callbackName];script.remove()}window[callbackName]=(response)=>{cleanup();resolve(response)};script.onerror=()=>{cleanup();reject(new Error("Product squad Google Sheet script request failed"))};script.src=`${productSquadSheetDataUrl}?tqx=responseHandler:${callbackName}&cache=${Date.now()}`;document.head.appendChild(script)})}
