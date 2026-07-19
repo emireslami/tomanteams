@@ -208,6 +208,9 @@ async function renderSession(request, env) {
   return jsonResponse({
     authenticated: Boolean(email),
     email,
+    firstName: session?.firstName || "",
+    lastName: session?.lastName || "",
+    name: session?.name || fullName(session || { email }),
     isBootstrapAdmin: email === "a.eslami@toman.ir" && isAdmin(email, env),
   });
 }

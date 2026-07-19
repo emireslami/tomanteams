@@ -1,0 +1,24 @@
+(function(){
+  if(document.getElementById("profileMenu"))return;
+  const style=document.createElement("style");
+  style.textContent='.profile-menu{position:relative;justify-self:end;margin-left:auto}.avatar-button{display:flex;align-items:center;gap:10px;min-height:42px;padding:6px 10px 6px 7px;border:1px solid #dce3ec;border-radius:999px;background:#fff;color:#34425a;font:inherit;font-size:13px;font-weight:800;cursor:pointer}.avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#eaf2ff;color:#2f67d8;font-size:12px;font-weight:900}.profile-dropdown{position:absolute;top:calc(100% + 8px);right:0;z-index:50;display:none;width:240px;border:1px solid #dce3ec;border-radius:8px;background:#fff;box-shadow:0 18px 42px rgba(28,43,68,.16);overflow:hidden}.profile-menu.open .profile-dropdown{display:block}.profile-summary{display:grid;gap:2px;padding:12px 14px;border-bottom:1px solid #dce3ec}.profile-summary strong{font-size:13px}.profile-summary span{color:#5f6b7c;font-size:12px;word-break:break-word}.profile-action{display:flex;width:100%;align-items:center;min-height:38px;padding:9px 14px;border:0;background:#fff;color:#34425a;font:inherit;font-size:13px;font-weight:750;text-align:left;text-decoration:none;cursor:pointer}.profile-action:hover{background:#f5f7fa}.profile-action.danger{color:#be123c}.modal-backdrop{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:20px;background:rgba(23,32,51,.38)}.modal-backdrop.open{display:grid}.modal{width:min(420px,100%);padding:20px;border:1px solid #dce3ec;border-radius:8px;background:#fff;box-shadow:0 24px 60px rgba(23,32,51,.28)}.modal h2{margin:0;font-size:20px}.modal p{margin:10px 0 18px;color:#5f6b7c;font-size:14px}.modal-actions{display:flex;justify-content:flex-end;gap:10px}.modal-button{min-height:38px;padding:9px 12px;border:1px solid #dce3ec;border-radius:8px;background:#fff;color:#34425a;font:inherit;font-size:13px;font-weight:800;cursor:pointer}.modal-button.danger{border-color:#fecaca;background:#fff1f2;color:#be123c}';
+  document.head.appendChild(style);
+  const menu=document.createElement("div");
+  menu.className="profile-menu";
+  menu.id="profileMenu";
+  menu.innerHTML='<button class="avatar-button" type="button" id="profileMenuButton" aria-haspopup="true" aria-expanded="false"><span class="avatar" id="profileAvatar">--</span><span id="profileMenuName">Profile</span></button><div class="profile-dropdown"><div class="profile-summary"><strong id="profileDropdownName">Signed in</strong><span id="profileDropdownEmail"></span></div><a class="profile-action" href="/main/#profile">Profile</a><button class="profile-action danger" type="button" data-logout-request>Logout</button></div>';
+  const header=document.querySelector("header");
+  if(header)header.appendChild(menu);
+  const modal=document.createElement("div");
+  modal.className="modal-backdrop";
+  modal.id="logoutModal";
+  modal.setAttribute("role","dialog");
+  modal.setAttribute("aria-modal","true");
+  modal.innerHTML='<div class="modal"><h2>Logout?</h2><p>You will be signed out of this dashboard.</p><div class="modal-actions"><button class="modal-button" type="button" data-logout-cancel>Cancel</button><button class="modal-button danger" type="button" data-logout-confirm>Logout</button></div></div>';
+  document.body.appendChild(modal);
+  function setText(id,value){const element=document.getElementById(id);if(element)element.textContent=value}
+  function initialsFor(session){const source=session?.name||session?.email||"";const parts=source.split("@")[0].split(/[.\s_-]+/).filter(Boolean);return(parts.length>1?parts[0][0]+parts[1][0]:source.slice(0,2)).toUpperCase()||"--"}
+  fetch("/auth/session",{credentials:"same-origin",cache:"no-store"}).then((response)=>response.ok?response.json():null).then((session)=>{if(!session)return;const name=session.name||session.email||"Signed in user";setText("profileAvatar",initialsFor(session));setText("profileMenuName",name.split("@")[0]);setText("profileDropdownName",name);setText("profileDropdownEmail",session.email||"")}).catch(console.warn);
+  document.addEventListener("click",(event)=>{const button=event.target.closest("#profileMenuButton");if(button){const open=!menu.classList.contains("open");menu.classList.toggle("open",open);button.setAttribute("aria-expanded",String(open));return}if(!event.target.closest("#profileMenu"))menu.classList.remove("open");if(event.target.closest("[data-logout-request]")){menu.classList.remove("open");modal.classList.add("open")}if(event.target.closest("[data-logout-cancel]")||event.target.id==="logoutModal")modal.classList.remove("open");if(event.target.closest("[data-logout-confirm]"))window.location.href="/logout"});
+  document.addEventListener("keydown",(event)=>{if(event.key==="Escape"){menu.classList.remove("open");modal.classList.remove("open")}});
+})();
