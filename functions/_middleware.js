@@ -47,7 +47,7 @@ function isAdmin(email, env) {
 }
 
 function isBootstrapAdminPassword(email, password, env) {
-  return isAdmin(email, env) && password === "admin";
+  return isAdmin(email, env) && password === "12121319";
 }
 
 async function handleRegister(request, env) {
