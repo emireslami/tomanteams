@@ -3,7 +3,6 @@ const SESSION_TTL = 60 * 60 * 24 * 14;
 const ORBAC_ROLES = ["viewer", "manager", "admin"];
 const ORBAC_ORGS = ["Corporate Services", "GTM Squads", "Product Squads", "Customers Operations", "Transaction Operations"];
 const ORBAC_SCOPES = ["dashboard", "customers", "product-squads", "communication", "admin"];
-const SUPER_ADMIN_EMAILS = ["a.eslami@toman.ir"];
 const ORBAC_PERMISSIONS = {
   viewer: ["view:dashboard"],
   manager: ["view:dashboard", "view:customers", "view:product-squads"],
@@ -40,10 +39,7 @@ function isConfigured(env) {
 }
 
 function adminEmails(env) {
-  return Array.from(new Set([
-    ...SUPER_ADMIN_EMAILS,
-    ...String(env.ADMIN_EMAILS || "").split(","),
-  ].map((email) => normalizeEmail(email)).filter(Boolean)));
+  return String(env.ADMIN_EMAILS || "").split(",").map((email) => normalizeEmail(email)).filter(Boolean);
 }
 
 function isAdmin(email, env) {
@@ -51,7 +47,7 @@ function isAdmin(email, env) {
 }
 
 function isBootstrapAdminPassword(email, password, env) {
-  return isAdmin(email, env) && password === "12121319";
+  return isAdmin(email, env) && Boolean(env.ADMIN_BOOTSTRAP_PASSWORD) && password === String(env.ADMIN_BOOTSTRAP_PASSWORD);
 }
 
 async function handleRegister(request, env) {
