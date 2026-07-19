@@ -1,3 +1,5 @@
 /main /main/ 301
 /main/* /main/index.html 200
+/squads /squads/ 301
+/squads/* /squads/:splat 200
 /* /main/index.html 200

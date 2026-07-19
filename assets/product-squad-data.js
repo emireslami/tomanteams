@@ -1,0 +1,46 @@
+window.TOMAN_PRODUCT_SQUAD_SERVICES = [
+  {squad:"Platform",service:"Statement",category:"Bank Transaction Ledger",definition:"A bank transaction data service that provides a clean, normalized, and reliable source of truth for bank account movements."},
+  {squad:"Platform",service:"Reconciliation Engine",category:"Financial Reconciliation",definition:"A financial reconciliation service that matches service transactions with bank movements and identifies inconsistencies and exceptions."},
+  {squad:"Platform",service:"Fee Wallet",category:"Revenue Management",definition:"A revenue management service that calculates partner fees, records revenue transactions, and maintains partner fee balances."},
+  {squad:"Platform",service:"Ticketing",category:"Case Management",definition:"A multi-party case-management service that connects partners, Toman teams, and banks to track and resolve operational issues."},
+  {squad:"Platform",service:"Contract",category:"Contract Lifecycle Management",definition:"A contract lifecycle management service that manages partner agreements from generation and signing through renewal and expiration."},
+  {squad:"Platform",service:"Partner Profile",category:"Partner Onboarding",definition:"A partner activation service that collects and maintains company, signer, banking, and onboarding information."},
+  {squad:"Platform",service:"Backoffice",category:"Operations Platform",definition:"A secure operational platform that provides permissioned and auditable tools for support and operations teams across Toman services."},
+  {squad:"Core",service:"Checkout",category:"Bank Connectivity",definition:"A banking connectivity service that executes bank operations and manages accounts, credentials, and direct communication with banks."},
+  {squad:"Core",service:"KYC / KYB",category:"Identity Verification",definition:"An identity verification service that validates individuals and organizations against biometric, legal, and regulatory data sources."},
+  {squad:"Core",service:"Inquisitor",category:"Inquiry Platform",definition:"An inquiry service hub that standardizes and provides banking, conversion, and authoritative data inquiries."},
+  {squad:"Core",service:"Digital Signature",category:"Digital Trust",definition:"A digital trust service that provides legally valid document signing, organizational sealing, and certificate management."},
+  {squad:"Core",service:"Gooyal",category:"Identity & Access Management",definition:"An identity and access service that manages authentication, user and partner identities, roles, and service access."},
+  {squad:"Market-PSP",service:"IPG",category:"Payment Gateway",definition:"A payment gateway service that enables merchants to accept online payments through multiple PSPs using a unified interface."},
+  {squad:"Market-PSP",service:"IPG Refund",category:"Refund Management",definition:"A refund orchestration service that manages full and partial payment refunds across different PSPs."},
+  {squad:"Market-PSP",service:"Repigma",category:"PSP Reporting & Reconciliation",definition:"A PSP reporting and reconciliation service that normalizes PSP transaction data and compares it with IPG records."},
+  {squad:"Market-PSP",service:"BACS",category:"",definition:""},
+  {squad:"Market-Bank",service:"Corporate Banking Web Application",category:"Corporate Banking Application",definition:"A web-based corporate banking application that provides partners with unified access to financial information, transactions, and approval workflows."},
+  {squad:"Market-Bank",service:"Corporate Banking Mobile Application",category:"Corporate Banking Application",definition:"A mobile corporate banking application that gives senior executives secure access to financial information and approval actions."},
+  {squad:"Market-Bank",service:"Corporate Banking Core",category:"Banking Orchestration",definition:"A banking orchestration service that manages partner-facing transaction processes between corporate customers and Toman's banking infrastructure."},
+  {squad:"Market-Bank",service:"Direct Debit",category:"Payment Collection",definition:"A payment collection service that enables authorized one-time and recurring debits from customers' bank accounts."},
+  {squad:"Market-Bank",service:"Via",category:"Billing & Collection",definition:"A billing and collection service that manages invoices, payable amounts, payment options, and receivable lifecycles."},
+  {squad:"Market-Bank",service:"Instant Settlement",category:"Wallet-based Disbursement",definition:"A pre-funded disbursement service that executes partner payments from Toman bank accounts using partner wallet balances."},
+  {squad:"Market-Bank",service:"Tax System",category:"Tax Integration",definition:"A tax integration service that prepares, submits, and tracks mandatory invoice and transaction information through the Moadian ecosystem."},
+  {squad:"Market-Bank",service:"ERP Integrations",category:"ERP Integration",definition:"An accounting integration service that maps Toman transactions to partners' financial structures and ERP systems."},
+  {squad:"Market-Bank",service:"Internal Payment Flow",category:"Internal Payment Workflow",definition:"An internal payment workflow service that manages the creation, approval, funding, execution, and tracking of organizational payments."}
+];
+
+window.TOMAN_PRODUCT_SQUAD_SCOPES = {
+  "Platform Squad": {
+    inScope: "Owns the shared operational platform and internal Layer-1 services that provide the financial, operational, and commercial backbone for Corporate Services.\nResponsible for bank transaction normalization (Statement), reconciliation, fee management, partner lifecycle (Partner Profile & Contract), operational tooling (Backoffice), and support operations (Ticketing).\nProvides trusted shared capabilities consumed by other squads.",
+    outOfScope: "Does not own customer-facing banking products or user experiences.\nDoes not initiate or execute payment transactions. Does not perform bank integrations or manage bank connectivity.\nDoes not own payment acceptance (IPG), payment collection, or settlement orchestration. Does not define business workflows for Corporate Banking or partner products.\nIts responsibility ends at providing shared platform capabilities and operational services."
+  },
+  "Core Squad": {
+    inScope: "Owns reusable core banking capabilities and Layer-1 infrastructure services that enable secure, compliant, and standardized access to banking products.\nResponsible for identity verification (KYC/KYB), payment orchestration (Checkout), inquiry services, digital signature, provider integrations, and other foundational capabilities shared across products and external partners.\nAlso responsible for the integration, operation, maintenance, and support of all externally sourced banking services (excluding PSP-provided services), including managing third-party providers, investigating and resolving bank-side service errors, and ensuring the reliability and continuity of service integrations across all banking products.",
+    outOfScope: "Does not own customer-facing applications (Web/Mobile).\nDoes not own business products such as Direct Debit, Instant Settlement, or Billing. Does not own financial reporting, reconciliation operations, or partner lifecycle management.\nDoes not define product-specific business rules beyond reusable core capabilities.\nDoes not own partner experience or commercial features."
+  },
+  "Market - PSP Squad": {
+    inScope: "Owns the complete payment acceptance domain through PSPs.\nResponsible for payment gateway services, refund orchestration, PSP reporting, operational reconciliation of PSP transactions, and inbound settlement validation for PSP-related products.\nProvides a unified payment acceptance experience while abstracting PSP-specific implementations from partners.",
+    outOfScope: "Does not perform financial settlement, accounting, treasury, or partner bank-account management.\nDoes not own Corporate Banking products or bank-transfer services.\nDoes not provide shared platform capabilities or identity services.\nIts responsibility ends at payment acceptance, PSP integrations, refund execution, PSP reporting, and inbound settlement validation for PSP-related products."
+  },
+  "Market - Bank Squad": {
+    inScope: "Owns customer-facing banking products and business workflows built on Platform and Core capabilities.\nResponsible for Corporate Banking Web and Mobile applications, Corporate Banking Core, Direct Debit, Instant Settlement, Via, ERP integrations, Tax System, and end-to-end banking experiences for corporate customers, including user journeys, business workflows, and product evolution.",
+    outOfScope: "Does not own low-level bank connectivity, bank adapters, bank credentials, statement parsing, or bank communication infrastructure.\nDoes not own PSP payment acceptance infrastructure or PSP operational reconciliation.\nDoes not own reusable platform services such as reconciliation engines, ticketing, contracts, or partner profiles.\nDoes not own identity, KYC/KYB, or other shared Core capabilities.\nIt consumes Platform and Core services to deliver end-user banking products and business workflows."
+  }
+};

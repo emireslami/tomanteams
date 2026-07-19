@@ -28,7 +28,7 @@ OTP by email can be added later before or after password verification.
 
 - User: registered email address
 - Role: `viewer`, `manager`, `admin`
-- Organization context: Corporate Services, GTM Squads, Product Squads, Customers Operations, Products Operations
+- Organization context: Corporate Services, GTM Squads, Product Squads, Customers Operations, Transaction Operations
 - Scope: `dashboard`, `customers`, `product-squads`, `communication`, `admin`
 - Permissions: derived from role and stored with the approved access record
 

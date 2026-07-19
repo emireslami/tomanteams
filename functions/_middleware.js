@@ -1,7 +1,7 @@
 const SESSION_COOKIE = "tt_session";
 const SESSION_TTL = 60 * 60 * 24 * 14;
 const ORBAC_ROLES = ["viewer", "manager", "admin"];
-const ORBAC_ORGS = ["Corporate Services", "GTM Squads", "Product Squads", "Customers Operations", "Products Operations"];
+const ORBAC_ORGS = ["Corporate Services", "GTM Squads", "Product Squads", "Customers Operations", "Transaction Operations"];
 const ORBAC_SCOPES = ["dashboard", "customers", "product-squads", "communication", "admin"];
 const ORBAC_PERMISSIONS = {
   viewer: ["view:dashboard"],
@@ -189,7 +189,7 @@ async function canManageAccess(email, env) {
 }
 
 function scopeForPath(path) {
-  if (path.startsWith("/product-squads")) return "product-squads";
+  if (path.startsWith("/squads")) return "product-squads";
   if (path.startsWith("/main")) return "dashboard";
   return "dashboard";
 }
