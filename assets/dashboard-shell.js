@@ -1,0 +1,27 @@
+(function(){
+  if(document.body.classList.contains("dashboard-shell-ready"))return;
+  const page=document.querySelector(".page");
+  const nav=document.querySelector("nav.route-bar, nav.top-actions");
+  if(!page||!nav)return;
+  const style=document.createElement("style");
+  style.textContent='body.dashboard-shell-ready{background:#f5f7fa}.dashboard-shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}.app-sider{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:18px;padding:22px 14px;border-right:1px solid #dce3ec;background:#fff;box-shadow:8px 0 28px rgba(28,43,68,.05);z-index:20}.sider-brand{display:grid;gap:4px;padding:0 8px 10px}.sider-title{color:#172033;font-size:16px;font-weight:900;line-height:1.2}.sider-caption{color:#5f6b7c;font-size:12px;font-weight:700}.sider-nav{display:grid;gap:4px}.sider-nav .route-link,.sider-nav .nav-link{width:100%;justify-content:flex-start;min-height:40px;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:#34425a;font-size:13px;font-weight:800}.sider-nav .route-link:hover,.sider-nav .nav-link:hover{background:#f5f7fa}.sider-nav .route-link.active,.sider-nav .nav-link.active,.sider-nav .nav-link.primary{background:#eaf2ff;color:#2f67d8}.sider-nav .admin-link{display:none}.sider-nav .admin-link.visible{display:flex;background:#fff7e6;color:#5b3b00}.app-content{min-width:0}.app-content .page{width:min(1240px,calc(100% - 48px));margin:0 auto;padding:28px 0 42px}.app-content header{position:sticky;top:0;z-index:15;margin:0 -24px 24px;padding:18px 24px;border:1px solid #dce3ec;border-top:0;border-radius:0 0 8px 8px;background:rgba(255,255,255,.94);backdrop-filter:saturate(1.15) blur(12px);box-shadow:0 10px 30px rgba(28,43,68,.06)}.app-content header h1{font-size:clamp(26px,3vw,38px)}.app-content main{margin-top:0}.app-content .profile-menu{align-self:start}.app-content .page-actions{margin-bottom:-4px}@media (max-width:900px){.dashboard-shell{grid-template-columns:1fr}.app-sider{position:static;height:auto;padding:12px;border-right:0;border-bottom:1px solid #dce3ec}.sider-brand{display:none}.sider-nav{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.sider-nav .route-link,.sider-nav .nav-link{width:auto;white-space:nowrap;border:1px solid #dce3ec;background:#fff}.app-content .page{width:min(100% - 24px,1180px);padding-top:18px}.app-content header{position:static;margin:0 0 18px;padding:0 0 18px;border:0;border-bottom:1px solid #dce3ec;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none}}';
+  document.head.appendChild(style);
+  const shell=document.createElement("div");
+  shell.className="dashboard-shell";
+  const sider=document.createElement("aside");
+  sider.className="app-sider";
+  sider.innerHTML='<div class="sider-brand"><div class="sider-title">Toman Teams</div><div class="sider-caption">Operating Model</div></div>';
+  const siderNav=document.createElement("nav");
+  siderNav.className="sider-nav";
+  siderNav.setAttribute("aria-label",nav.getAttribute("aria-label")||"Dashboard navigation");
+  Array.from(nav.children).forEach((child)=>siderNav.appendChild(child));
+  sider.appendChild(siderNav);
+  const content=document.createElement("div");
+  content.className="app-content";
+  page.parentNode.insertBefore(shell,page);
+  shell.appendChild(sider);
+  shell.appendChild(content);
+  nav.remove();
+  content.appendChild(page);
+  document.body.classList.add("dashboard-shell-ready");
+})();
