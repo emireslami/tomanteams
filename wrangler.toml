@@ -1,3 +1,7 @@
 name = "tomanteams"
 compatibility_date = "2026-07-15"
 pages_build_output_dir = "."
+
+[[kv_namespaces]]
+binding = "ACCESS_KV"
+id = "d9c6e74c675d41c597b24b9012a0d1a0"
